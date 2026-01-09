@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 import { Command } from "commander";
 import { statusCommand } from "./commands/status.js";
-import { syncGithubCommand } from "./commands/sync-github.js";
+import { syncGithubReposCommand } from "./commands/sync-github.js";
 
 const program = new Command();
 
@@ -21,15 +21,18 @@ program
   });
 
 /**
- * SYNC-GITHUB COMMAND (stub for now)
+ * SYNC-GITHUB (real) — subcommands
  */
-program
+const syncGithub = program
   .command("sync-github")
-  .description("Sync GitHub data (stub for now)")
-  .requiredOption("--owner <owner>", "GitHub owner or organization")
-  .requiredOption("--repo <repo>", "GitHub repository name")
+  .description("Sync GitHub data into local cache");
+
+syncGithub
+  .command("repos")
+  .description("Sync your GitHub repos to .dit/cache/github-repos.json")
+  .option("--out <path>", "Output cache file path", ".dit/cache/github-repos.json")
   .action(async (opts) => {
-    await syncGithubCommand(opts);
+    await syncGithubReposCommand(opts);
   });
 
 await program.parseAsync(process.argv);
