@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from "node:fs";
 
 const Args = z.object({
   out: z.string().min(1).optional(),
+  org: z.string().min(1).optional(),
 });
 
 type NormalizedRepo = {
@@ -61,6 +62,12 @@ function isRepoChanged(prev: NormalizedRepo, next: NormalizedRepo) {
   return prev.updated_at !== next.updated_at || prev.pushed_at !== next.pushed_at;
 }
 
+function defaultCachePath(org?: string) {
+  return org
+    ? `.dit/cache/github-repos.${org}.json`
+    : `.dit/cache/github-repos.json`;
+}
+
 export async function syncGithubReposCommand(opts: unknown): Promise<void> {
   const parsed = Args.safeParse(opts ?? {});
   if (!parsed.success) {
@@ -71,17 +78,22 @@ export async function syncGithubReposCommand(opts: unknown): Promise<void> {
   }
 
   const token = requireEnv("GITHUB_TOKEN");
-  const outFile = parsed.data.out ?? ".dit/cache/github-repos.json";
+  const org = parsed.data.org?.trim();
+  const outFile = parsed.data.out ?? defaultCachePath(org);
 
-  logger.info({ outFile }, "sync-github repos starting");
-  console.log("Syncing GitHub repos...");
+  logger.info({ outFile, org: org ?? null }, "sync-github repos starting");
+  console.log(`Syncing GitHub repos... ${org ? `(org: ${org})` : "(user scope)"}`);
 
   // Load previous cache (if present) BEFORE overwriting it.
   const previous = readPreviousCache(outFile);
   const prevRepos = previous?.repos ?? [];
 
   const client = new GithubClient({ token });
-  const reposRaw = await client.listAllUserRepos();
+
+  const reposRaw = org
+    ? await client.listAllOrgRepos(org)
+    : await client.listAllUserRepos();
+
   const repos = reposRaw.map(normalizeRepo);
 
   // Diff: added/removed/changed/unchanged
@@ -107,6 +119,7 @@ export async function syncGithubReposCommand(opts: unknown): Promise<void> {
   // Write new cache
   writeJson(outFile, {
     generated_at: new Date().toISOString(),
+    scope: org ? { type: "org", org } : { type: "user" },
     count: repos.length,
     repos,
   });
@@ -120,6 +133,7 @@ export async function syncGithubReposCommand(opts: unknown): Promise<void> {
       privateCount,
       archivedCount,
       outFile,
+      org: org ?? null,
       diff: {
         added: added.length,
         removed: removed.length,

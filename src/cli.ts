@@ -2,6 +2,8 @@
 import { Command } from "commander";
 import { statusCommand } from "./commands/status.js";
 import { syncGithubReposCommand } from "./commands/sync-github.js";
+import { doctorGithubCommand } from "./commands/doctor-github.js";
+
 
 const program = new Command();
 
@@ -29,10 +31,28 @@ const syncGithub = program
 
 syncGithub
   .command("repos")
-  .description("Sync your GitHub repos to .dit/cache/github-repos.json")
-  .option("--out <path>", "Output cache file path", ".dit/cache/github-repos.json")
+  .description("Sync GitHub repos to local cache")
+  .option("--org <org>", "GitHub organization name")
+  .option("--out <path>", "Output cache file path")
   .action(async (opts) => {
     await syncGithubReposCommand(opts);
   });
+
+
+  /**
+ * DOCTOR COMMANDS
+ */
+const doctor = program
+  .command("doctor")
+  .description("Self-diagnostics for integrations and environment");
+
+doctor
+  .command("github")
+  .description("Diagnose GitHub token, identity, and org access")
+  .option("--org <org>", "GitHub organization to diagnose")
+  .action(async (opts) => {
+    await doctorGithubCommand(opts);
+  });
+
 
 await program.parseAsync(process.argv);

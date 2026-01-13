@@ -1,3 +1,4 @@
+// src/lib/githubClient.ts
 type GithubClientOptions = {
   token: string;
   userAgent?: string;
@@ -50,6 +51,7 @@ export class GithubClient {
     return (await res.json()) as T;
   }
 
+  // ---- USER REPOS ----
   async listUserRepos(perPage = 100, page = 1) {
     const q = new URLSearchParams({
       per_page: String(perPage),
@@ -73,4 +75,47 @@ export class GithubClient {
 
     return all;
   }
+
+  // ---- ORG REPOS ----
+  async listOrgRepos(org: string, perPage = 100, page = 1) {
+    const q = new URLSearchParams({
+      per_page: String(perPage),
+      page: String(page),
+      sort: "updated",
+      direction: "desc",
+      type: "all",
+    });
+    return this.request<any[]>(`/orgs/${encodeURIComponent(org)}/repos?${q.toString()}`);
+  }
+
+  async listAllOrgRepos(org: string) {
+    const all: any[] = [];
+    let page = 1;
+
+    while (true) {
+      const batch = await this.listOrgRepos(org, 100, page);
+      all.push(...batch);
+      if (batch.length < 100) break;
+      page += 1;
+    }
+
+    return all;
+  }
+
+    async getViewer() {
+    // Who am I authenticated as?
+    return this.request<any>(`/user`);
+  }
+
+  async getOrg(org: string) {
+    // Does the org exist / is it visible?
+    return this.request<any>(`/orgs/${encodeURIComponent(org)}`);
+  }
+
+  async getOrgMembership(org: string) {
+    // Are we a member of the org? Requires appropriate access/visibility.
+    // Returns 200 with details, or 404 if not a member / not visible, or 403 if forbidden.
+    return this.request<any>(`/user/memberships/orgs/${encodeURIComponent(org)}`);
+  }
+
 }
